@@ -7,7 +7,8 @@ from utils import evaluate, plt_out
 
 use_render_human = False
 use_slippery = True
-episodes = 8000  # Total number of episodes
+policy = "sarsa"
+episodes = 3000  # Total number of episodes
 alpha = 0.5  # Learning rate
 gamma = 0.9  # Discount factor
 epsilon = 1.0
@@ -46,6 +47,7 @@ print(qtable)
 # Training
 
 iter_obj = tqdm(range(episodes))
+
 # Training
 for s in iter_obj:
     state, _ = environment.reset()
@@ -55,29 +57,42 @@ for s in iter_obj:
 
     outcomes.append("Failure")
 
+    if policy == "sarsa":
+        action = np.argmax(qtable[state])
+
     # Until the agent gets stuck in a hole or reaches the goal, keep training it
     while not terminated:
         # Generate a random number between 0 and 1
         rnd = np.random.random()
-
-        # If random number < epsilon, take a random action
-        if rnd < epsilon:
-            action = environment.action_space.sample()
-        # Else, take the action with the highest value in the current state
-        else:
-            action = np.argmax(qtable[state])
-
         # Implement this action and move the agent in the desired direction
-        observation, reward, terminated, truncated, info = environment.step(action)
+        if policy == "Q":
 
-        # Update Q(s,a)
-        qtable[state, action] = qtable[state, action] + \
-                                alpha * (reward + gamma * np.max(qtable[observation]) - qtable[state, action])
+            if rnd < epsilon:
+                action = environment.action_space.sample()
+            else:
+                action = np.argmax(qtable[state])
 
-        # Update our current state
-        state = observation
+            observation, reward, terminated, truncated, info = environment.step(action)
 
-        # If we have a reward, it means that our outcome is a success
+            qtable[state, action] = qtable[state, action] + \
+                        alpha * (reward + gamma * np.max(qtable[observation]) - qtable[state, action])
+
+            state = observation
+        elif policy == "sarsa":
+
+            observation, reward, terminated, truncated, info = environment.step(action)
+
+            if rnd < epsilon:
+                action_new = environment.action_space.sample()
+            else:
+                action_new = np.argmax(qtable[observation])
+
+            qtable[state, action] = qtable[state, action] + \
+                                    alpha * (reward + gamma * qtable[observation][action_new] - qtable[state, action])
+
+            state = observation
+            action = action_new
+
         if reward:
             outcomes[-1] = "Success"
 
